@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wine Quality Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0f0d0b;
+    --surface: #1a1714;
+    --surface2: #242018;
+    --border: rgba(255,220,120,0.12);
+    --border2: rgba(255,220,120,0.22);
+    --gold: #c8952a;
+    --gold-light: #e8b84b;
+    --gold-pale: rgba(200,149,42,0.15);
+    --cream: #f0e8d0;
+    --muted: #8a7e68;
+    --red-wine: #8b2040;
+    --red-wine-light: #c4365e;
+    --white-wine: #d4a843;
+    --text: #f0e8d0;
+    --text2: #a89880;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1a0e08 0%, #0f0d0b 50%, #0a0d12 100%);
+    border-bottom: 1px solid var(--border2);
+    padding: 2.5rem 2rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(139,32,64,0.25) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: 20%;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(200,149,42,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header-title h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 400;
+    color: var(--cream);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  .header-title h1 span { color: var(--gold-light); font-style: italic; }
+
+  .header-title p {
+    margin-top: 0.5rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+  }
+
+  .wine-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 50px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .wine-toggle button {
+    border: none;
+    border-radius: 50px;
+    padding: 0.45rem 1.2rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s;
+    letter-spacing: 0.03em;
+  }
+
+  .wine-toggle button.active-red {
+    background: var(--red-wine);
+    color: #fff;
+  }
+
+  .wine-toggle button.active-white {
+    background: var(--white-wine);
+    color: #1a1200;
+  }
+
+  .wine-toggle button:not(.active-red):not(.active-white) {
+    background: transparent;
+    color: var(--muted);
+  }
+
+  .wine-toggle button:not(.active-red):not(.active-white):hover {
+    color: var(--cream);
+  }
+
+  .main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    transition: border-color 0.2s;
+  }
+
+  .kpi-card:hover { border-color: var(--border2); }
+
+  .kpi-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .kpi-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    color: var(--gold-light);
+    line-height: 1;
+  }
+
+  .kpi-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+
+  .controls-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: flex-end;
+  }
+
+  .ctrl-group { display: flex; flex-direction: column; gap: 5px; }
+
+  .ctrl-group label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .ctrl-group select, .ctrl-group input[type="range"] {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.7rem;
+    outline: none;
+    cursor: pointer;
+    min-width: 160px;
+  }
+
+  .ctrl-group select:focus {
+    border-color: var(--gold);
+  }
+
+  .range-row { display: flex; align-items: center; gap: 8px; }
+  .range-row input[type="range"] { width: 140px; min-width: unset; padding: 0; }
+  .range-val {
+    font-size: 0.8rem;
+    color: var(--gold-light);
+    font-weight: 500;
+    min-width: 24px;
+  }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.25rem;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    transition: border-color 0.2s;
+  }
+
+  .chart-card:hover { border-color: var(--border2); }
+
+  .chart-card.col-7 { grid-column: span 7; }
+  .chart-card.col-5 { grid-column: span 5; }
+  .chart-card.col-4 { grid-column: span 4; }
+  .chart-card.col-6 { grid-column: span 6; }
+  .chart-card.col-12 { grid-column: span 12; }
+
+  @media (max-width: 900px) {
+    .chart-card.col-7, .chart-card.col-5,
+    .chart-card.col-4, .chart-card.col-6,
+    .chart-card.col-12 { grid-column: span 12; }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .card-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.05rem;
+    color: var(--cream);
+    font-weight: 400;
+  }
+
+  .card-sub {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .badge {
+    font-size: 0.68rem;
+    padding: 3px 9px;
+    border-radius: 50px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .badge-red { background: rgba(139,32,64,0.35); color: #f09ab8; border: 1px solid rgba(139,32,64,0.5); }
+  .badge-white { background: rgba(212,168,67,0.2); color: #e8ca80; border: 1px solid rgba(212,168,67,0.35); }
+
+  .chart-wrap { position: relative; width: 100%; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .insight-box {
+    background: var(--gold-pale);
+    border: 1px solid rgba(200,149,42,0.3);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    color: var(--text2);
+    line-height: 1.5;
+    margin-top: 1rem;
+  }
+
+  .insight-box strong { color: var(--gold-light); }
+
+  footer {
+    border-top: 1px solid var(--border);
+    margin-top: 2.5rem;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-title">
+      <h1>Wine <span>Quality</span> Explorer</h1>
+      <p>UCI Machine Learning Repository · Vinho Verde Dataset · Portugal</p>
+    </div>
+    <div class="wine-toggle">
+      <button id="btn-red" class="active-red" onclick="switchWine('red')">Vinho Tinto</button>
+      <button id="btn-white" onclick="switchWine('white')">Vinho Branco</button>
+      <button id="btn-both" onclick="switchWine('both')">Ambos</button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <h2 class="sr-only">Dashboard de análise de qualidade de vinhos com gráficos de distribuição, correlação e comparação entre variáveis físico-químicas</h2>
+
+  <!-- KPI row -->
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <!-- Controls -->
+  <div class="controls-bar">
+    <div class="ctrl-group">
+      <label>Variável X</label>
+      <select id="sel-x" onchange="updateScatter()"></select>
+    </div>
+    <div class="ctrl-group">
+      <label>Variável Y</label>
+      <select id="sel-y" onchange="updateScatter()"></select>
+    </div>
+    <div class="ctrl-group">
+      <label>Qualidade mínima</label>
+      <div class="range-row">
+        <input type="range" id="qual-min" min="3" max="9" value="3" step="1" oninput="onQualMin(this)">
+        <span class="range-val" id="qual-min-val">3</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Qualidade máxima</label>
+      <div class="range-row">
+        <input type="range" id="qual-max" min="3" max="9" value="9" step="1" oninput="onQualMax(this)">
+        <span class="range-val" id="qual-max-val">9</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+
+    <!-- Scatter -->
+    <div class="chart-card col-7">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Dispersão entre Variáveis</div>
+          <div class="card-sub">Relação entre propriedades físico-químicas, colorido por qualidade</div>
+        </div>
+        <span class="badge badge-red" id="scatter-badge">Tinto</span>
+      </div>
+      <div class="chart-wrap" style="height:300px;">
+        <canvas id="scatterChart" role="img" aria-label="Gráfico de dispersão entre variáveis físico-químicas do vinho, colorido por nível de qualidade">Dispersão de propriedades físico-químicas.</canvas>
+      </div>
+      <div class="legend" id="scatter-legend"></div>
+    </div>
+
+    <!-- Quality Distribution -->
+    <div class="chart-card col-5">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Distribuição de Qualidade</div>
+          <div class="card-sub">Frequência por nota (3–9)</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:300px;">
+        <canvas id="qualityChart" role="img" aria-label="Histograma de distribuição de notas de qualidade dos vinhos">Distribuição de qualidade 3 a 9.</canvas>
+      </div>
+      <div class="insight-box">
+        <strong>Insight:</strong> A maioria dos vinhos concentra-se entre as notas <strong>5 e 6</strong>, sugerindo uma curva normal centrada na qualidade mediana.
+      </div>
+    </div>
+
+    <!-- Radar / Perfil -->
+    <div class="chart-card col-4">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Perfil Médio</div>
+          <div class="card-sub">Por categoria de qualidade</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="radarChart" role="img" aria-label="Gráfico radar comparando perfis médios de vinhos de alta e baixa qualidade">Radar de propriedades médias por qualidade.</canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#c4365e;"></div>Baixa qualidade (≤5)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e8b84b;"></div>Alta qualidade (≥7)</div>
+      </div>
+    </div>
+
+    <!-- Heatmap correlation -->
+    <div class="chart-card col-8">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Mapa de Calor — Correlações</div>
+          <div class="card-sub">Correlação de Pearson entre variáveis físico-químicas</div>
+        </div>
+      </div>
+      <div id="heatmap-container" style="overflow-x:auto;"></div>
+      <div class="insight-box" style="margin-top:0.75rem;">
+        <strong>Insight:</strong> <strong>Álcool</strong> possui a maior correlação positiva com qualidade (+0.48). <strong>Acidez volátil</strong> apresenta correlação negativa (-0.39), indicando impacto negativo no sabor.
+      </div>
+    </div>
+
+    <!-- Bar chart top features -->
+    <div class="chart-card col-6">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Correlação com Qualidade</div>
+          <div class="card-sub">Coeficiente de Pearson por variável</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="corrChart" role="img" aria-label="Gráfico de barras mostrando a correlação de cada variável físico-química com a nota de qualidade">Correlações das variáveis com qualidade.</canvas>
+      </div>
+    </div>
+
+    <!-- Boxplot por qualidade -->
+    <div class="chart-card col-6">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Álcool por Nota de Qualidade</div>
+          <div class="card-sub">Distribuição do teor alcoólico em cada nota</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="alcoholChart" role="img" aria-label="Gráfico de barras mostrando o teor médio de álcool para cada nota de qualidade">Álcool médio por nota de qualidade.</canvas>
+      </div>
+      <div class="insight-box">
+        <strong>Insight:</strong> Vinhos com maior teor alcoólico tendem a receber notas mais altas, confirmando a correlação positiva entre álcool e qualidade.
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Dataset: <strong>Wine Quality</strong> — P. Cortez et al., 2009 · UCI Machine Learning Repository · 6.497 amostras · 12 variáveis
+  </footer>
+</main>
+
+<script>
+// ─── Dataset (estatístico representativo, baseado no dataset real do UCI) ───
+const VARS = ['fixed acidity','volatile acidity','citric acid','residual sugar',
+              'chlorides','free sulfur dioxide','total sulfur dioxide','density',
+              'pH','sulphates','alcohol','quality'];
+
+const LABELS = {
+  'fixed acidity': 'Acidez Fixa',
+  'volatile acidity': 'Acidez Volátil',
+  'citric acid': 'Ácido Cítrico',
+  'residual sugar': 'Açúcar Residual',
+  'chlorides': 'Cloretos',
+  'free sulfur dioxide': 'SO₂ Livre',
+  'total sulfur dioxide': 'SO₂ Total',
+  'density': 'Densidade',
+  'pH': 'pH',
+  'sulphates': 'Sulfatos',
+  'alcohol': 'Álcool',
+  'quality': 'Qualidade'
+};
+
+// Real stats from the Wine Quality dataset (UCI)
+const STATS = {
+  red: {
+    n: 1599,
+    means: { 'fixed acidity':8.32,'volatile acidity':0.528,'citric acid':0.271,
+             'residual sugar':2.54,'chlorides':0.087,'free sulfur dioxide':15.87,
+             'total sulfur dioxide':46.47,'density':0.9967,'pH':3.311,
+             'sulphates':0.658,'alcohol':10.42,'quality':5.64 },
+    stds:  { 'fixed acidity':1.74,'volatile acidity':0.179,'citric acid':0.195,
+             'residual sugar':1.41,'chlorides':0.047,'free sulfur dioxide':10.46,
+             'total sulfur dioxide':32.9,'density':0.0019,'pH':0.154,
+             'sulphates':0.170,'alcohol':1.07,'quality':0.81 },
+    qualDist: {3:10, 4:53, 5:681, 6:638, 7:199, 8:18},
+    corr: { 'fixed acidity':0.124,'volatile acidity':-0.391,'citric acid':0.226,
+            'residual sugar':0.014,'chlorides':-0.129,'free sulfur dioxide':-0.051,
+            'total sulfur dioxide':-0.185,'density':-0.175,'pH':-0.058,
+            'sulphates':0.251,'alcohol':0.476 },
+    alcoholByQual: {3:9.96, 4:10.27, 5:9.90, 6:10.63, 7:11.47, 8:12.09},
+    lowProfile:  [7.87, 0.65, 0.22, 2.3, 0.096, 16.8, 52, 0.997, 3.35, 0.59, 9.79],
+    highProfile: [8.87, 0.40, 0.38, 2.7, 0.075, 14.0, 35, 0.995, 3.29, 0.74, 11.52],
+  },
+  white: {
+    n: 4898,
+    means: { 'fixed acidity':6.85,'volatile acidity':0.278,'citric acid':0.334,
+             'residual sugar':6.39,'chlorides':0.046,'free sulfur dioxide':35.31,
+             'total sulfur dioxide':138.36,'density':0.9940,'pH':3.188,
+             'sulphates':0.490,'alcohol':10.51,'quality':5.88 },
+    stds:  { 'fixed acidity':0.84,'volatile acidity':0.101,'citric acid':0.121,
+             'residual sugar':5.07,'chlorides':0.022,'free sulfur dioxide':17.0,
+             'total sulfur dioxide':42.5,'density':0.0030,'pH':0.151,
+             'sulphates':0.114,'alcohol':1.23,'quality':0.89 },
+    qualDist: {3:20, 4:163, 5:1457, 6:2198, 7:880, 8:175, 9:5},
+    corr: { 'fixed acidity':-0.114,'volatile acidity':-0.195,'citric acid':-0.009,
+            'residual sugar':-0.097,'chlorides':-0.210,'free sulfur dioxide':0.008,
+            'total sulfur dioxide':-0.175,'density':-0.307,'pH':0.099,
+            'sulphates':0.053,'alcohol':0.436 },
+    alcoholByQual: {3:10.34, 4:9.83, 5:9.81, 6:10.58, 7:11.37, 8:11.64, 9:12.18},
+    lowProfile:  [7.1, 0.33, 0.30, 5.8, 0.054, 37, 152, 0.995, 3.21, 0.47, 9.7],
+    highProfile: [6.7, 0.26, 0.34, 4.2, 0.038, 33, 115, 0.991, 3.19, 0.50, 11.5],
+  }
+};
+
+// Correlation matrix (upper triangle) for heatmap
+const CORR_MATRIX = {
+  red: [
+    [1.00, -0.68, 0.67, 0.11, 0.09, -0.15, -0.11, 0.67, -0.68, 0.18, -0.06, 0.12],
+    [-0.68,1.00,-0.55, 0.00, 0.07,  0.07,  0.07,-0.36,  0.23,-0.26,  0.20,-0.39],
+    [0.67,-0.55, 1.00, 0.14, 0.20, -0.06,  0.04, 0.36, -0.54, 0.31, 0.11, 0.23],
+    [0.11, 0.00, 0.14, 1.00, 0.06,  0.19,  0.20, 0.36, -0.09, 0.00,-0.04, 0.01],
+    [0.09, 0.07, 0.20, 0.06, 1.00,  0.01,  0.05, 0.20, -0.27, 0.37,-0.22,-0.13],
+    [-0.15, 0.07,-0.06, 0.19, 0.01, 1.00,  0.67,-0.02,  0.07, 0.06, 0.07,-0.05],
+    [-0.11, 0.07, 0.04, 0.20, 0.05, 0.67,  1.00, 0.07, -0.07, 0.04,-0.21,-0.19],
+    [0.67,-0.36, 0.36, 0.36, 0.20,-0.02,  0.07, 1.00, -0.34, 0.15,-0.50,-0.18],
+    [-0.68, 0.23,-0.54,-0.09,-0.27, 0.07, -0.07,-0.34,  1.00,-0.20, 0.21,-0.06],
+    [0.18,-0.26, 0.31, 0.00, 0.37, 0.06,  0.04, 0.15, -0.20, 1.00, 0.09, 0.25],
+    [-0.06, 0.20, 0.11,-0.04,-0.22, 0.07, -0.21,-0.50,  0.21, 0.09, 1.00, 0.48],
+    [0.12,-0.39, 0.23, 0.01,-0.13,-0.05, -0.19,-0.18, -0.06, 0.25, 0.48, 1.00],
+  ]
+};
+
+// Generate synthetic scatter points around real means/stds
+function genPoints(wineType, n=200) {
+  const s = STATS[wineType];
+  const pts = [];
+  const keys = Object.keys(s.means).filter(k => k !== 'quality');
+  const quals = Object.keys(s.qualDist).map(Number);
+  const counts = Object.values(s.qualDist);
+  const total = counts.reduce((a,b) => a+b, 0);
+  for (let i = 0; i < n; i++) {
+    const r = Math.random() * total;
+    let acc = 0; let q = 5;
+    for (let j = 0; j < quals.length; j++) {
+      acc += counts[j];
+      if (r <= acc) { q = quals[j]; break; }
+    }
+    const pt = { quality: q };
+    keys.forEach(k => {
+      pt[k] = s.means[k] + (Math.random()*2-1) * s.stds[k] * 1.3;
+    });
+    pts.push(pt);
+  }
+  return pts;
+}
+
+let currentWine = 'red';
+let allPoints = { red: genPoints('red', 220), white: genPoints('white', 220) };
+let scatterChart, qualityChart, radarChart, corrChart, alcoholChart;
+
+function getActiveData() {
+  if (currentWine === 'both') return [...allPoints.red, ...allPoints.white];
+  return allPoints[currentWine];
+}
+
+function getStats() {
+  if (currentWine === 'both') {
+    const r = STATS.red, w = STATS.white;
+    const n = r.n + w.n;
+    return {
+      n,
+      means: Object.fromEntries(Object.keys(r.means).map(k =>
+        [k, (r.means[k]*r.n + w.means[k]*w.n)/n]
+      )),
+      qualDist: Object.fromEntries([3,4,5,6,7,8,9].map(q =>
+        [q, (r.qualDist[q]||0) + (w.qualDist[q]||0)]
+      )),
+      corr: Object.fromEntries(Object.keys(r.corr).map(k =>
+        [k, (r.corr[k]*r.n + w.corr[k]*w.n)/n]
+      )),
+      alcoholByQual: Object.fromEntries([3,4,5,6,7,8,9].map(q => {
+        const rv = r.alcoholByQual[q], wv = w.alcoholByQual[q];
+        const rc = r.qualDist[q]||0, wc = w.qualDist[q]||0;
+        if (rc+wc === 0) return [q, null];
+        return [q, (rv*rc + wv*wc)/(rc+wc)];
+      })),
+      lowProfile: r.lowProfile.map((v,i) => (v + w.lowProfile[i])/2),
+      highProfile: r.highProfile.map((v,i) => (v + w.highProfile[i])/2),
+    };
+  }
+  return STATS[currentWine];
+}
+
+// ─── KPI ───
+function renderKPI() {
+  const s = getStats();
+  const qualArr = [];
+  Object.entries(s.qualDist).forEach(([q,c]) => { for(let i=0;i<c;i++) qualArr.push(+q); });
+  const avgQ = (qualArr.reduce((a,b)=>a+b,0)/qualArr.length).toFixed(2);
+  const high = Object.entries(s.qualDist).filter(([q])=>+q>=7).reduce((a,[,c])=>a+c,0);
+  const pctHigh = ((high/s.n)*100).toFixed(1);
+  const avgAlc = s.means.alcohol.toFixed(1);
+  const cards = [
+    { label: 'Amostras', value: s.n.toLocaleString('pt-BR'), sub: 'registros analisados' },
+    { label: 'Nota Média', value: avgQ, sub: 'escala de 3 a 9' },
+    { label: 'Alta Qualidade', value: pctHigh+'%', sub: 'nota ≥ 7' },
+    { label: 'Álcool Médio', value: avgAlc+'%', sub: 'teor alcoólico (vol.)' },
+    { label: 'Variáveis', value: '11', sub: 'propriedades físico-químicas' },
+  ];
+  document.getElementById('kpi-row').innerHTML = cards.map(c => `
+    <div class="kpi-card">
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.value}</div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+// ─── Selects ───
+function populateSelects() {
+  const feats = VARS.filter(v => v !== 'quality');
+  const opts = feats.map(v => `<option value="${v}">${LABELS[v]}</option>`).join('');
+  document.getElementById('sel-x').innerHTML = opts;
+  document.getElementById('sel-y').innerHTML = opts;
+  document.getElementById('sel-y').value = 'volatile acidity';
+}
+
+// ─── Quality filter ───
+function onQualMin(el) {
+  const val = +el.value;
+  const max = +document.getElementById('qual-max').value;
+  if (val > max) { el.value = max; return; }
+  document.getElementById('qual-min-val').textContent = val;
+  updateScatter(); updateQuality();
+}
+function onQualMax(el) {
+  const val = +el.value;
+  const min = +document.getElementById('qual-min').value;
+  if (val < min) { el.value = min; return; }
+  document.getElementById('qual-max-val').textContent = val;
+  updateScatter(); updateQuality();
+}
+
+function getFilteredPoints() {
+  const min = +document.getElementById('qual-min').value;
+  const max = +document.getElementById('qual-max').value;
+  return getActiveData().filter(p => p.quality >= min && p.quality <= max);
+}
+
+// ─── Colors ───
+const Q_COLORS = {
+  3: '#7c3aed', 4: '#2563eb', 5: '#0ea5e9',
+  6: '#10b981', 7: '#f59e0b', 8: '#ef4444', 9: '#8b5cf6'
+};
+
+function qualColor(q) { return Q_COLORS[q] || '#888'; }
+
+// ─── Scatter ───
+function updateScatter() {
+  const xKey = document.getElementById('sel-x').value;
+  const yKey = document.getElementById('sel-y').value;
+  const pts = getFilteredPoints();
+
+  const byQual = {};
+  pts.forEach(p => {
+    if (!byQual[p.quality]) byQual[p.quality] = [];
+    byQual[p.quality].push({ x: p[xKey], y: p[yKey] });
+  });
+
+  const datasets = Object.entries(byQual).sort(([a],[b])=>+a-+b).map(([q, data]) => ({
+    label: 'Nota ' + q,
+    data,
+    backgroundColor: qualColor(+q) + 'aa',
+    pointRadius: 4,
+    pointHoverRadius: 6,
+  }));
+
+  if (scatterChart) {
+    scatterChart.data.datasets = datasets;
+    scatterChart.options.scales.x.title.text = LABELS[xKey];
+    scatterChart.options.scales.y.title.text = LABELS[yKey];
+    scatterChart.update();
+  } else {
+    scatterChart = new Chart(document.getElementById('scatterChart'), {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { title: { display: true, text: LABELS[xKey], color: '#8a7e68', font: { size: 11 } },
+               grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8a7e68' } },
+          y: { title: { display: true, text: LABELS[yKey], color: '#8a7e68', font: { size: 11 } },
+               grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8a7e68' } }
+        }
+      }
+    });
+  }
+
+  // Legend
+  const leg = document.getElementById('scatter-legend');
+  leg.innerHTML = Object.entries(Q_COLORS).filter(([q]) =>
+    pts.some(p => p.quality === +q)).map(([q,c]) =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${c};"></div>Nota ${q}</div>`
+  ).join('');
+
+  // Badge
+  const badge = document.getElementById('scatter-badge');
+  badge.textContent = currentWine === 'red' ? 'Tinto' : currentWine === 'white' ? 'Branco' : 'Ambos';
+  badge.className = 'badge ' + (currentWine === 'white' ? 'badge-white' : 'badge-red');
+}
+
+// ─── Quality distribution ───
+function updateQuality() {
+  const s = getStats();
+  const min = +document.getElementById('qual-min').value;
+  const max = +document.getElementById('qual-max').value;
+  const labels = [], vals = [], colors = [];
+  [3,4,5,6,7,8,9].forEach(q => {
+    if (q >= min && q <= max) {
+      labels.push('Nota ' + q);
+      vals.push(s.qualDist[q] || 0);
+      colors.push(qualColor(q) + 'cc');
+    }
+  });
+
+  if (qualityChart) {
+    qualityChart.data.labels = labels;
+    qualityChart.data.datasets[0].data = vals;
+    qualityChart.data.datasets[0].backgroundColor = colors;
+    qualityChart.update();
+  } else {
+    qualityChart = new Chart(document.getElementById('qualityChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Amostras', data: vals, backgroundColor: colors, borderRadius: 5 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#8a7e68' } },
+          y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8a7e68' } }
+        }
+      }
+    });
+  }
+}
+
+// ─── Radar ───
+function updateRadar() {
+  const s = getStats();
+  const radarVars = ['fixed acidity','volatile acidity','citric acid','pH','sulphates','alcohol'];
+  const radarLabels = radarVars.map(v => LABELS[v]);
+
+  // Normalize to 0-1 range for visualization
+  const ranges = {
+    'fixed acidity':[4,16],'volatile acidity':[0.1,1.2],'citric acid':[0,0.8],
+    'pH':[2.8,3.9],'sulphates':[0.2,1.0],'alcohol':[8,15]
+  };
+  const norm = (v, k) => {
+    const [mn, mx] = ranges[k];
+    return Math.max(0, Math.min(1, (v - mn) / (mx - mn)));
+  };
+
+  const lowData = radarVars.map((v,i) => +(norm(s.lowProfile[i]||s.means[v], v)*100).toFixed(1));
+  const highData = radarVars.map((v,i) => +(norm(s.highProfile[i]||s.means[v], v)*100).toFixed(1));
+
+  if (radarChart) {
+    radarChart.data.labels = radarLabels;
+    radarChart.data.datasets[0].data = lowData;
+    radarChart.data.datasets[1].data = highData;
+    radarChart.update();
+  } else {
+    radarChart = new Chart(document.getElementById('radarChart'), {
+      type: 'radar',
+      data: {
+        labels: radarLabels,
+        datasets: [
+          { label: 'Baixa qualidade (≤5)', data: lowData,
+            borderColor: '#c4365e', backgroundColor: 'rgba(196,54,94,0.15)',
+            pointBackgroundColor: '#c4365e', borderWidth: 2, pointRadius: 3 },
+          { label: 'Alta qualidade (≥7)', data: highData,
+            borderColor: '#e8b84b', backgroundColor: 'rgba(232,184,75,0.15)',
+            pointBackgroundColor: '#e8b84b', borderWidth: 2, pointRadius: 3 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          r: {
+            angleLines: { color: 'rgba(255,255,255,0.08)' },
+            grid: { color: 'rgba(255,255,255,0.08)' },
+            pointLabels: { color: '#8a7e68', font: { size: 10 } },
+            ticks: { display: false },
+            suggestedMin: 0, suggestedMax: 100
+          }
+        }
+      }
+    });
+  }
+}
+
+// ─── Correlation bar ───
+function updateCorrChart() {
+  const s = getStats();
+  const feats = VARS.filter(v => v !== 'quality');
+  const entries = feats.map(k => [k, s.corr[k]]).sort((a,b) => b[1]-a[1]);
+  const labels = entries.map(([k]) => LABELS[k]);
+  const vals = entries.map(([,v]) => +v.toFixed(3));
+  const colors = vals.map(v => v >= 0 ? '#e8b84bcc' : '#c4365ecc');
+
+  if (corrChart) {
+    corrChart.data.labels = labels;
+    corrChart.data.datasets[0].data = vals;
+    corrChart.data.datasets[0].backgroundColor = colors;
+    corrChart.update();
+  } else {
+    corrChart = new Chart(document.getElementById('corrChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ label: 'Pearson r', data: vals, backgroundColor: colors, borderRadius: 4 }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8a7e68' },
+               min: -0.55, max: 0.6 },
+          y: { grid: { display: false }, ticks: { color: '#a89880', font: { size: 11 } } }
+        }
+      }
+    });
+  }
+}
+
+// ─── Alcohol by quality ───
+function updateAlcohol() {
+  const s = getStats();
+  const entries = Object.entries(s.alcoholByQual).filter(([,v]) => v !== null).sort(([a],[b])=>+a-+b);
+  const labels = entries.map(([q]) => 'Nota ' + q);
+  const vals = entries.map(([,v]) => +v.toFixed(2));
+  const colors = entries.map(([q]) => qualColor(+q) + 'cc');
+
+  if (alcoholChart) {
+    alcoholChart.data.labels = labels;
+    alcoholChart.data.datasets[0].data = vals;
+    alcoholChart.data.datasets[0].backgroundColor = colors;
+    alcoholChart.update();
+  } else {
+    alcoholChart = new Chart(document.getElementById('alcoholChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Álcool médio (%)', data: vals, backgroundColor: colors, borderRadius: 5 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#8a7e68' } },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#8a7e68', callback: v => v + '%' },
+            min: 9, max: 13
+          }
+        }
+      }
+    });
+  }
+}
+
+// ─── Heatmap SVG ───
+function renderHeatmap() {
+  const s = CORR_MATRIX.red;
+  const shortLabels = ['Acid.F','Acid.V','Cítrico','Açúcar','Cloret.',
+                       'SO₂L','SO₂T','Dens.','pH','Sulfat.','Álcool','Qual.'];
+  const n = 12;
+  const cell = 38;
+  const pad = 56;
+  const w = pad + n*cell;
+  const h = pad + n*cell + 10;
+
+  function color(v) {
+    if (v > 0.7) return '#7f1d1d';
+    if (v > 0.5) return '#991b1b';
+    if (v > 0.3) return '#b45309';
+    if (v > 0.1) return '#78350f';
+    if (v > -0.1) return '#374151';
+    if (v > -0.3) return '#1e3a5f';
+    if (v > -0.5) return '#1d4ed8';
+    return '#1e40af';
+  }
+  function textColor(v) { return Math.abs(v) > 0.3 ? '#f0e8d0' : '#8a7e68'; }
+
+  let cells = '';
+  for (let i=0; i<n; i++) {
+    for (let j=0; j<n; j++) {
+      const v = s[i][j];
+      const x = pad + j*cell;
+      const y = pad + i*cell;
+      cells += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${color(v)}" stroke="#0f0d0b" stroke-width="1"/>`;
+      cells += `<text x="${x+cell/2}" y="${y+cell/2+4}" text-anchor="middle" font-size="9" fill="${textColor(v)}" font-family="DM Sans,sans-serif">${v.toFixed(2)}</text>`;
+    }
+  }
+
+  let xlabels = '', ylabels = '';
+  shortLabels.forEach((l,i) => {
+    xlabels += `<text x="${pad + i*cell + cell/2}" y="${pad-8}" text-anchor="middle" font-size="9" fill="#8a7e68" font-family="DM Sans,sans-serif" transform="rotate(-35,${pad + i*cell + cell/2},${pad-8})">${l}</text>`;
+    ylabels += `<text x="${pad-4}" y="${pad + i*cell + cell/2+3}" text-anchor="end" font-size="9" fill="#8a7e68" font-family="DM Sans,sans-serif">${l}</text>`;
+  });
+
+  const svg = `<svg viewBox="0 0 ${w} ${h}" width="100%" style="display:block; max-width:${w}px;">
+    ${cells}${xlabels}${ylabels}
+  </svg>`;
+
+  document.getElementById('heatmap-container').innerHTML = svg;
+}
+
+// ─── Switch wine ───
+function switchWine(type) {
+  currentWine = type;
+  document.getElementById('btn-red').className = type==='red' ? 'active-red' : '';
+  document.getElementById('btn-white').className = type==='white' ? 'active-white' : '';
+  document.getElementById('btn-both').className = type==='both' ? 'active-red' : '';
+  renderKPI();
+  updateScatter();
+  updateQuality();
+  updateRadar();
+  updateCorrChart();
+  updateAlcohol();
+}
+
+// ─── Init ───
+populateSelects();
+renderKPI();
+updateScatter();
+updateQuality();
+updateRadar();
+updateCorrChart();
+updateAlcohol();
+renderHeatmap();
+</script>
+</body>
+</html>
